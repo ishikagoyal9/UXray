@@ -25,6 +25,31 @@ def scan_website(url: str):
 
             html = page.content()
             title = page.title()
+        
+            css_colors = page.evaluate("""
+                () => {
+                    const elements = document.querySelectorAll('*');
+                    const results = [];
+                    
+                    for (let el of elements) {
+                        const style = window.getComputedStyle(el);
+                        const color = style.color;
+                        const bg = style.backgroundColor;
+                        
+                        if (bg === 'rgba(0, 0, 0, 0)') continue;
+                        if (!color || !bg) continue;
+                        
+                        results.push({
+                            tag: el.tagName,
+                            color: color,
+                            background: bg
+                        });
+                        
+                        if (results.length >= 50) break;
+                    }
+                    return results;
+                }
+            """)
 
             return {
                 "success": True,

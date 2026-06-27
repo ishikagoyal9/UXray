@@ -1,11 +1,13 @@
 from bs4 import BeautifulSoup
 import re
 
+
 def hex_to_rgb(hex_color):
     hex_color = hex_color.strip('#')
     if len(hex_color) == 3:
         hex_color = ''.join([c*2 for c in hex_color])
     return tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
+
 
 def get_relative_luminance(rgb):
     r, g, b = [x/255.0 for x in rgb]
@@ -14,6 +16,7 @@ def get_relative_luminance(rgb):
     b = b/12.92 if b <= 0.03928 else ((b+0.055)/1.055)**2.4
     return 0.2126*r + 0.7152*g + 0.0722*b
 
+
 def get_contrast_ratio(color1, color2):
     l1 = get_relative_luminance(color1)
     l2 = get_relative_luminance(color2)
@@ -21,59 +24,65 @@ def get_contrast_ratio(color1, color2):
     darker = min(l1, l2)
     return (lighter + 0.05) / (darker + 0.05)
 
-def check_contrast(html: str):
-    issues = []
-    soup = BeautifulSoup(html, 'html.parser')
-    
-  
-    bad_combinations = [
-        # (text_color, bg_color, element_description)
-        ("#ffffff", "#ffff00", "White text on yellow"),
-        ("#ffffff", "#ff0000", "White text on red"),
-        ("#000000", "#0000ff", "Black text on blue"),
-        ("#cccccc", "#ffffff", "Light grey on white"),
-        ("#999999", "#ffffff", "Grey on white"),
-    ]
-    
-    elements = soup.find_all(style=True)
-    for element in elements:
-        style = element.get('style', '')
-        
 
-        color_match = re.search(
-            r'color:\s*([#\w]+)', style
-        )
-        bg_match = re.search(
-            r'background(?:-color)?:\s*([#\w]+)', style
-        )
-        
-        if color_match and bg_match:
-            text_color = color_match.group(1)
-            bg_color = bg_match.group(1)
-            
-            try:
-                if text_color.startswith('#') and bg_color.startswith('#'):
-                    text_rgb = hex_to_rgb(text_color)
-                    bg_rgb = hex_to_rgb(bg_color)
-                    ratio = get_contrast_ratio(text_rgb, bg_rgb)
-                    
-                    if ratio < 4.5:
-                        issues.append({
-                            "type": "low_contrast",
-                            "severity": "CRITICAL" if ratio < 3.0 else "HIGH",
-                            "element": str(element)[:100],
-                            "message": f"Contrast ratio {ratio:.1f}:1 is below WCAG minimum 4.5:1",
-                            "fix": f"Change text color to darker shade or background to lighter shade"
-                        })
-            except:
-                pass
+def parse_rgb(rgb_str):
+    match = re.search(r'rgb\((\d+),\s*(\d+),\s*(\d+)\)', rgb_str)
+    if match:
+        return tuple(int(x) for x in match.groups())
+    return None
+
+
+def check_contrast_computed(css_colors: list):
+    issues = []
+    seen = set()
+    count = 0
+
+    for item in css_colors:
+        if count >= 5:
+            break
+
+        color = item.get('color', '')
+        bg = item.get('background', '')
+
+        # Duplicate skip
+        key = f"{color}_{bg}"
+        if key in seen:
+            continue
+        seen.add(key)
+
+        text_rgb = parse_rgb(color)
+        bg_rgb = parse_rgb(bg)
+
+        if not text_rgb or not bg_rgb:
+            continue
+
     
+        if text_rgb == bg_rgb:
+            continue
+
+        ratio = get_contrast_ratio(text_rgb, bg_rgb)
+
+      
+        if ratio <= 1.05:
+            continue
+
+        if ratio < 4.5:
+            issues.append({
+                "type": "low_contrast",
+                "severity": "CRITICAL" if ratio < 3.0 else "HIGH",
+                "element": item.get('tag', 'element'),
+                "message": f"Contrast ratio {ratio:.1f}:1 — WCAG minimum is 4.5:1",
+                "fix": "Change text color to darker shade"
+            })
+            count += 1
+
     return issues
-def check_wcag(html: str):
+
+
+def check_wcag(html: str, css_colors: list = []):
     soup = BeautifulSoup(html, 'html.parser')
     issues = []
 
-    
     images = soup.find_all('img')
     for img in images:
         if not img.get('alt'):
@@ -82,7 +91,7 @@ def check_wcag(html: str):
                 "severity": "HIGH",
                 "element": str(img),
                 "message": "Image has no alt text",
-                "fix": f'Add alt="description" to this image'
+                "fix": 'Add alt="description" to this image'
             })
 
     inputs = soup.find_all('input')
@@ -130,12 +139,11 @@ def check_wcag(html: str):
             "message": "Page has no title",
             "fix": "<title>Your Page Title</title>"
         })
-    contrast_issues = check_contrast(html)
+
+    contrast_issues = check_contrast_computed(css_colors)
     issues.extend(contrast_issues)
 
     return {
         "total_issues": len(issues),
         "issues": issues
-    }   
-
-    
+    }
