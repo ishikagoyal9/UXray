@@ -90,7 +90,16 @@ def get_wcag_fix(issue: dict):
             "fix_html": "/* Fix contrast */\n.element {\n  color: #1a1a1a;\n  background: #ffffff;\n}",
             "explanation": "Low contrast makes text hard to read for visually impaired users."
         }
-
+    elif issue_type == "small_tap_target": 
+        return {
+            "category": "WCAG",
+            "issue_type": issue_type,
+            "severity": issue["severity"],
+            "problem": issue["message"],
+            "original": element,
+            "fix_html": "/* Fix tap target size */\n.button, a {\n  min-width: 44px;\n  min-height: 44px;\n  padding: 12px 24px;\n  display: inline-flex;\n  align-items: center;\n}",
+            "explanation": "Small tap targets cause misclicks on mobile. WCAG 2.5.5 requires minimum 44x44px touch targets."
+        }
     return None
 
 

@@ -44,7 +44,6 @@ def check_contrast_computed(css_colors: list):
         color = item.get('color', '')
         bg = item.get('background', '')
 
-        # Duplicate skip
         key = f"{color}_{bg}"
         if key in seen:
             continue
@@ -56,13 +55,11 @@ def check_contrast_computed(css_colors: list):
         if not text_rgb or not bg_rgb:
             continue
 
-    
         if text_rgb == bg_rgb:
             continue
 
         ratio = get_contrast_ratio(text_rgb, bg_rgb)
 
-      
         if ratio <= 1.05:
             continue
 
@@ -139,6 +136,25 @@ def check_wcag(html: str, css_colors: list = []):
             "message": "Page has no title",
             "fix": "<title>Your Page Title</title>"
         })
+
+    all_buttons = soup.find_all(['button', 'a'])
+    for btn in all_buttons:
+        style = btn.get('style', '')
+        width_match = re.search(r'width:\s*(\d+)px', style)
+        height_match = re.search(r'height:\s*(\d+)px', style)
+
+        if width_match and height_match:
+            width = int(width_match.group(1))
+            height = int(height_match.group(1))
+
+            if width < 44 or height < 44:
+                issues.append({
+                    "type": "small_tap_target",
+                    "severity": "HIGH",
+                    "element": str(btn)[:100],
+                    "message": f"Tap target {width}x{height}px — minimum 44x44px required (WCAG 2.5.5)",
+                    "fix": "Increase size to minimum 44x44px"
+                })
 
     contrast_issues = check_contrast_computed(css_colors)
     issues.extend(contrast_issues)
