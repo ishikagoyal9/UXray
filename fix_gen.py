@@ -90,7 +90,16 @@ def get_wcag_fix(issue: dict):
             "fix_html": "/* Fix contrast */\n.element {\n  color: #1a1a1a;\n  background: #ffffff;\n}",
             "explanation": "Low contrast makes text hard to read for visually impaired users."
         }
-
+    elif issue_type == "small_tap_target": 
+        return {
+            "category": "WCAG",
+            "issue_type": issue_type,
+            "severity": issue["severity"],
+            "problem": issue["message"],
+            "original": element,
+            "fix_html": "/* Fix tap target size */\n.button, a {\n  min-width: 44px;\n  min-height: 44px;\n  padding: 12px 24px;\n  display: inline-flex;\n  align-items: center;\n}",
+            "explanation": "Small tap targets cause misclicks on mobile. WCAG 2.5.5 requires minimum 44x44px touch targets."
+        }
     return None
 
 
@@ -145,8 +154,25 @@ def get_heuristic_fix(issue: dict):
             "problem": "No home/logo link",
             "fix_html": '<a href="/" aria-label="Go to homepage">\n  <img src="logo.png" alt="Logo" />\n</a>',
             "explanation": "Clicking logo to go home is a universal UX convention."
+        },
+        "keyboard_nav_issue": { 
+            "category": "Heuristic",
+            "issue_type": issue_type,
+            "severity": issue["severity"],
+            "problem": "Elements not reachable by keyboard",
+            "fix_html": "<!-- Remove tabindex=-1 -->\n<button tabindex='0'>Click me</button>\n<a href='/' tabindex='0'>Link</a>",
+            "explanation": "Keyboard users cannot interact with tabindex=-1 elements."
+        },
+        "no_main_landmark": {  
+            "category": "Heuristic",
+            "issue_type": issue_type,
+            "severity": issue["severity"],
+            "problem": "No main landmark found",
+            "fix_html": "<main id='main'>\n  <!-- Main content here -->\n</main>",
+            "explanation": "Main landmark helps screen readers jump to main content."
         }
     }
+    
 
     return fixes_map.get(issue_type)
 

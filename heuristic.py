@@ -1,5 +1,6 @@
 from bs4 import BeautifulSoup
 
+
 def check_heuristics(html: str):
     soup = BeautifulSoup(html, 'html.parser')
     issues = []
@@ -14,6 +15,7 @@ def check_heuristics(html: str):
             "fix": "Add <nav> element for main navigation"
         })
         score -= 10
+
     search = soup.find('input', {'type': 'search'}) or \
              soup.find('input', {'name': 'q'}) or \
              soup.find('input', {'placeholder': lambda x: x and 'search' in x.lower()})
@@ -40,7 +42,6 @@ def check_heuristics(html: str):
                 })
                 score -= 5
                 break
-
 
     icon_buttons = soup.find_all('button')
     for btn in icon_buttons:
@@ -77,7 +78,6 @@ def check_heuristics(html: str):
             "fix": '<a href="#main">Skip to main content</a>'
         })
         score -= 5
-
     logo_link = soup.find('a', {'href': '/'}) or \
                 soup.find('a', {'href': '#'})
     if not logo_link:
@@ -88,6 +88,35 @@ def check_heuristics(html: str):
             "fix": "Wrap logo in <a href='/'>link</a>"
         })
         score -= 3
+
+    focusable = soup.find_all(['a', 'button', 'input', 'select', 'textarea'])
+    non_focusable = []
+    for el in focusable:
+        tabindex = el.get('tabindex')
+        if tabindex:
+            try:
+                if int(tabindex) < 0:
+                    non_focusable.append(el)
+            except:
+                pass
+
+    if non_focusable:
+        issues.append({
+            "type": "keyboard_nav_issue",
+            "severity": "HIGH",
+            "message": f"{len(non_focusable)} elements have tabindex=-1 — keyboard users cannot reach them",
+            "fix": "Remove tabindex=-1 or change to tabindex=0"
+        })
+        score -= 10
+    main = soup.find('main') or soup.find(attrs={"role": "main"})
+    if not main:
+        issues.append({
+            "type": "no_main_landmark",
+            "severity": "MEDIUM",
+            "message": "No main landmark — screen readers cannot identify main content",
+            "fix": "Add <main> tag or role='main' to main content"
+        })
+        score -= 5
 
     return {
         "heuristic_score": max(0, score),
