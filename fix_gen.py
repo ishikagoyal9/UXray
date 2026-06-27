@@ -154,8 +154,25 @@ def get_heuristic_fix(issue: dict):
             "problem": "No home/logo link",
             "fix_html": '<a href="/" aria-label="Go to homepage">\n  <img src="logo.png" alt="Logo" />\n</a>',
             "explanation": "Clicking logo to go home is a universal UX convention."
+        },
+        "keyboard_nav_issue": { 
+            "category": "Heuristic",
+            "issue_type": issue_type,
+            "severity": issue["severity"],
+            "problem": "Elements not reachable by keyboard",
+            "fix_html": "<!-- Remove tabindex=-1 -->\n<button tabindex='0'>Click me</button>\n<a href='/' tabindex='0'>Link</a>",
+            "explanation": "Keyboard users cannot interact with tabindex=-1 elements."
+        },
+        "no_main_landmark": {  
+            "category": "Heuristic",
+            "issue_type": issue_type,
+            "severity": issue["severity"],
+            "problem": "No main landmark found",
+            "fix_html": "<main id='main'>\n  <!-- Main content here -->\n</main>",
+            "explanation": "Main landmark helps screen readers jump to main content."
         }
     }
+    
 
     return fixes_map.get(issue_type)
 
