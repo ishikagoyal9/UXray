@@ -9,9 +9,9 @@
 ![Playwright](https://img.shields.io/badge/Playwright-2EAD33?style=for-the-badge&logo=playwright&logoColor=white)
 ![BeautifulSoup](https://img.shields.io/badge/BeautifulSoup4-4B8BBE?style=for-the-badge&logo=python&logoColor=white)
 ![WCAG](https://img.shields.io/badge/WCAG-2.1-purple?style=for-the-badge)
-![Status](https://img.shields.io/badge/Status-Prototype-orange?style=for-the-badge)
 
-`PS-2` · `Ignite Room` · 
+
+`PS-2` · `Ignite Room` 
 
 </div>
 
@@ -33,21 +33,9 @@
 
 ---
 
-## The Problem
+## The Problem - Conversational UX Auditor
 
-> **UX audits today don't scale — and they miss what actually matters.**
-
-| Expensive, slow, expert-dependent | Existing tools miss what matters |
-|---|---|
-| Manual UX audits need senior reviewers and days of effort — out of reach for most product teams. | Automated scanners catch technical bugs but stay blind to confusing flows, unclear copy, and frustrating journeys. |
-
-<div align="center">
-
-| 88% | 71% |
-|:---:|:---:|
-| of users **won't return** to a website after a bad UX experience | of sites **fail basic WCAG** accessibility checks, locking out millions of users |
-
-</div>
+UX audits today don't scale — manual reviews need senior experts and days of effort, while automated scanners catch technical bugs but stay blind to confusing flows and unclear copy. The result: 88% of users won't return to a website after a bad experience, and 71% of websites fail basic WCAG accessibility checks, locking out millions of users.
 
 ---
 
@@ -57,7 +45,7 @@
 
 ```mermaid
 flowchart LR
-    A[Browses live websites] --> B[Scores against<br/>heuristics + WCAG]
+    A[Browses live websites] --> B[Scores against<br/>heuristics + WCAG+ DOM]
     B --> C[Generates<br/>deployable fixes]
     C -.->|"Ask why / what it changes"| D[Conversational<br/>follow-up]
 ````
@@ -65,7 +53,7 @@ flowchart LR
 | Capability                           | What it does                                                                           |
 | ------------------------------------ | -------------------------------------------------------------------------------------- |
 | **Browses live websites**            | Agentic browser captures real user journeys — no manual screenshots                    |
-| **Scores against heuristics + WCAG** | Combines UX heuristics with accessibility guideline validation                         |
+| **Scores using heuristics+WCAG+DOM** | Combines UX heuristics with accessibility guideline validation                         |
 | **Generates deployable fixes**       | Outputs ranked, ready-to-ship HTML/CSS patches — not just a report                     |
 | **Conversational follow-up**         | Ask the audit assistant *why* an issue matters or *what* a fix changes — in plain chat |
 
@@ -173,22 +161,6 @@ flowchart LR
 | **40%** | WCAG score      | Contrast, alt text, headings, labels. Critical issues: −30 pts max · High: −25 pts max · Medium: −15 pts max                                                    |
 | **35%** | Heuristic score | Nielsen's 10 rules scored live: `nav` element +10 · missing skip-to-main −5 · no logo/home link −3 · icon buttons without labels −8 · no footer −3              |
 | **25%** | DOM score       | Starts at 100. Deductions: missing `H1` −8 · missing `<html lang>` −12 · missing `<meta description>` −10 · missing semantic `nav` −10. *(SEO + Accessibility)* |
-
----
-
-## Why We Beat the Alternatives
-
-> Existing options solve one slice of the problem — we cover the full loop.
-
-| Capability                  | **Us** | Lighthouse / axe | Manual Audit | Survey Tools |
-| --------------------------- | :----: | :--------------: | :----------: | :----------: |
-| Finds real usability issues |    ✅   |         ❌        |       ✅      |      ⚠️      |
-| WCAG accessibility checks   |    ✅   |         ✅        |       ✅      |       ❌      |
-| Generates deployable fixes  |    ✅   |         ❌        |       ❌      |       ❌      |
-| Conversational follow-up    |    ✅   |         ❌        |       ❌      |       ❌      |
-| Fast and low cost           |    ✅   |         ✅        |       ❌      |      ⚠️      |
-
-*Lighthouse/axe catch technical bugs only. Manual audits are accurate but slow and costly. Survey tools collect opinions, not fixes.*
 
 ---
 
