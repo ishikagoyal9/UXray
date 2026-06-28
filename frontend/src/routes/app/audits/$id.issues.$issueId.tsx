@@ -1,20 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import {
-  ArrowLeft,
-  Lightbulb,
-  Code2,
-  Image as ImageIcon,
-  TrendingUp,
-  ChevronDown,
-  Copy,
-  Check,
-} from "lucide-react";
+import { ArrowLeft, Lightbulb, Code2, TrendingUp, ChevronDown, Copy, Check, MessageSquare } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { issues } from "@/lib/mock-data";
+import { fetchReport, scanToIssues, screenshotUrl, type ScanResult } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -22,7 +13,7 @@ export const Route = createFileRoute("/app/audits/$id/issues/$issueId")({
   head: ({ params }) => ({
     meta: [
       { title: `Issue ${params.issueId} — UXray` },
-      { name: "description", content: "Issue details." },
+      { name: "description", content: "Live issue details." },
     ],
   }),
   component: IssueDetail,
@@ -30,18 +21,30 @@ export const Route = createFileRoute("/app/audits/$id/issues/$issueId")({
 
 function IssueDetail() {
   const { id, issueId } = Route.useParams();
-  const issue = issues.find((i) => i.id === issueId) ?? issues[0]!;
+  const [scan, setScan] = useState<ScanResult | null>(null);
   const [copied, setCopied] = useState(false);
-  const sevColor =
-    issue.severity === "critical"
-      ? "destructive"
-      : issue.severity === "medium"
-        ? "warning"
-        : "info";
+  useEffect(() => { fetchReport(id).then(setScan); }, [id]);
+  const issue = scan ? scanToIssues(scan).find((i) => i.id === issueId) : null;
+
+  if (!scan || !issue) {
+    return (
+      <div className="p-6 md:p-8 max-w-3xl mx-auto">
+        <Card className="p-8 bg-card/60 text-center space-y-4">
+          <h1 className="text-2xl font-bold">Issue not found</h1>
+          <p className="text-sm text-muted-foreground">Run a live audit first, then open an issue from the report.</p>
+          <Button asChild className="bg-gradient-primary text-primary-foreground border-0 shadow-glow">
+            <Link to="/app/audits/new">Start new audit</Link>
+          </Button>
+        </Card>
+      </div>
+    );
+  }
+
+  const sevColor = issue.severity === "critical" ? "destructive" : issue.severity === "medium" ? "warning" : "info";
 
   return (
     <div className="p-6 md:p-8 space-y-6 max-w-5xl mx-auto">
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 flex-wrap">
         <Button asChild variant="ghost" size="icon">
           <Link to="/app/audits/$id" params={{ id }}>
             <ArrowLeft className="h-4 w-4" />
@@ -59,11 +62,11 @@ function IssueDetail() {
           {issue.severity}
         </Badge>
         <Badge variant="outline">{issue.category}</Badge>
-        {issue.wcagRef && (
-          <Badge variant="outline" className="text-muted-foreground">
-            {issue.wcagRef}
-          </Badge>
-        )}
+        <Button asChild variant="outline" size="sm" className="ml-auto">
+          <Link to="/app/chat">
+            <MessageSquare className="h-3.5 w-3.5 mr-1" /> Ask AI about this
+          </Link>
+        </Button>
       </div>
 
       <div>
@@ -71,13 +74,13 @@ function IssueDetail() {
         <p className="mt-2 text-muted-foreground">{issue.description}</p>
       </div>
 
-      <div className="grid md:grid-cols-3 gap-4">
+      <div className="grid md:grid-cols-4 gap-4">
         <Card className="p-4 bg-card/60">
           <div className="text-xs text-muted-foreground">Impact</div>
           <div className="text-lg font-semibold mt-1">{issue.impact}</div>
         </Card>
         <Card className="p-4 bg-card/60">
-          <div className="text-xs text-muted-foreground">Selector</div>
+          <div className="text-xs text-muted-foreground">Detected element</div>
           <div className="font-mono text-xs mt-1 truncate">{issue.selector}</div>
         </Card>
         <Card className="p-4 bg-card/60">
@@ -86,24 +89,42 @@ function IssueDetail() {
             <TrendingUp className="h-4 w-4" /> +{issue.estImprovement}
           </div>
         </Card>
+        <Card className="p-4 bg-card/60">
+          <div className="text-xs text-muted-foreground">Page</div>
+          <div className="text-sm font-semibold mt-1 truncate">
+            {(issue as any).pageType || (issue as any).pageTitle || "Captured page"}
+          </div>
+          <div className="text-[11px] text-muted-foreground truncate mt-1">
+            {(issue as any).pageUrl || scan.url}
+          </div>
+        </Card>
       </div>
 
-      <Card className="p-5 bg-card/60">
-        <div className="flex items-center gap-2 mb-3">
-          <ImageIcon className="h-4 w-4 text-muted-foreground" />
-          <h3 className="font-semibold text-sm">Screenshot preview</h3>
-        </div>
-        <div className="aspect-video rounded-lg border border-border bg-gradient-mesh relative overflow-hidden">
-          <div className="absolute inset-0 grid-bg opacity-50" />
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 glass rounded-xl px-5 py-3 border-2 border-destructive shadow-glow">
-            <div className="text-xs font-medium">Detected element</div>
-            <div className="text-[10px] text-muted-foreground font-mono mt-0.5">
-              {issue.selector}
-            </div>
+      <Card className="p-5 bg-card/60 overflow-hidden">
+        <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
+          <div>
+            <h3 className="font-semibold text-sm">Issue page screenshot</h3>
+            <p className="text-xs text-muted-foreground mt-1">
+              {(issue as any).pageType || (issue as any).pageTitle || "Captured page"} ·{" "}
+              {(issue as any).pageUrl || scan.url}
+            </p>
           </div>
-          <div className="absolute top-3 left-3 right-3 h-8 rounded-md bg-card/40 backdrop-blur" />
-          <div className="absolute bottom-3 left-3 right-3 h-12 rounded-md bg-card/40 backdrop-blur" />
+          <Badge variant="outline">{(issue as any).pageType || "Page"}</Badge>
         </div>
+
+        {screenshotUrl((issue as any).screenshot) ? (
+          <div className="rounded-xl border border-border bg-muted/20 overflow-auto max-h-[520px]">
+            <img
+              src={screenshotUrl((issue as any).screenshot)}
+              alt="Issue-specific page screenshot"
+              className="w-full rounded-lg"
+            />
+          </div>
+        ) : (
+          <div className="rounded-xl border border-border p-8 text-center text-sm text-muted-foreground">
+            No issue-specific screenshot returned for this finding.
+          </div>
+        )}
       </Card>
 
       <Card className="p-5 bg-card/60">
@@ -118,13 +139,13 @@ function IssueDetail() {
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <Code2 className="h-4 w-4 text-muted-foreground" />
-            <h3 className="font-semibold text-sm">Code suggestion</h3>
+            <h3 className="font-semibold text-sm">Code / element suggestion</h3>
           </div>
           <Button
             size="sm"
             variant="ghost"
             onClick={() => {
-              navigator.clipboard.writeText(issue.codeAfter);
+              navigator.clipboard.writeText(issue.codeAfter || issue.recommendation);
               setCopied(true);
               toast.success("Copied");
               setTimeout(() => setCopied(false), 1500);
@@ -140,15 +161,15 @@ function IssueDetail() {
         </div>
         <div className="grid md:grid-cols-2 gap-3">
           <div>
-            <div className="text-xs text-muted-foreground mb-1.5">Before</div>
-            <pre className="rounded-lg bg-destructive/5 border border-destructive/20 p-3 text-xs font-mono overflow-x-auto text-foreground whitespace-pre">
-              {issue.codeBefore}
+            <div className="text-xs text-muted-foreground mb-1.5">Before / selector</div>
+            <pre className="rounded-lg bg-destructive/5 border border-destructive/20 p-3 text-xs font-mono overflow-x-auto text-foreground whitespace-pre-wrap">
+              {issue.codeBefore || issue.selector}
             </pre>
           </div>
           <div>
-            <div className="text-xs text-muted-foreground mb-1.5">After</div>
-            <pre className="rounded-lg bg-success/5 border border-success/20 p-3 text-xs font-mono overflow-x-auto text-foreground whitespace-pre">
-              {issue.codeAfter}
+            <div className="text-xs text-muted-foreground mb-1.5">Suggested fix</div>
+            <pre className="rounded-lg bg-success/5 border border-success/20 p-3 text-xs font-mono overflow-x-auto text-foreground whitespace-pre-wrap">
+              {issue.codeAfter || issue.recommendation}
             </pre>
           </div>
         </div>
@@ -157,22 +178,18 @@ function IssueDetail() {
       <Collapsible defaultOpen>
         <Card className="bg-card/60">
           <CollapsibleTrigger className="w-full p-5 flex items-center justify-between group">
-            <div className="flex items-center gap-2">
-              <h3 className="font-semibold text-sm">UX explanation</h3>
-            </div>
+            <h3 className="font-semibold text-sm">UX explanation</h3>
             <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
           </CollapsibleTrigger>
           <CollapsibleContent>
             <div className="px-5 pb-5 text-sm text-muted-foreground space-y-2">
               <p>
-                This issue affects approximately{" "}
-                <span className="text-foreground font-medium">38%</span> of your visitors, with
-                disproportionate impact on users with low vision or relying on assistive technology.
+                This is a live backend-generated finding from the {issue.category} module, not mock
+                report data.
               </p>
               <p>
-                Resolving it brings you closer to{" "}
-                <span className="text-foreground font-medium">WCAG 2.2 AA conformance</span> and
-                reduces the risk of accessibility-related abandonment on this flow.
+                Fixing it can improve usability, accessibility, and the final UX score. Use the AI
+                Assistant only to explain or refine the fix conversationally.
               </p>
             </div>
           </CollapsibleContent>
